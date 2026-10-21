@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # Backend da Escola de Discipulado (Next.js + Node.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/escola_discipulado
+      - QDRANT_URL=http://qdrant:6333
+      - EVOLUTION_API_URL=http://evolution:8080
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - db
+      - qdrant
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+  # Banco de Dados PostgreSQL
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=escola_discipulado
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+  # Qdrant - Vetor de busca para conteúdo das lições
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+  # Evolution API - WhatsApp automation
+  evolution:
+    image: atendai/evolution-api:v2.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+    volumes:
+      - evolution-data:/evolution/data
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+  # n8n - Automação de workflows
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Manaus
+      - TZ=America/Manaus
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+  # Jitsi Meet - Videoconferência
+  jitsi:
+    image: jitsi/web:latest
+    ports:
+      - "8000:80"
+      - "4443:443"
+    environment:
+      - ENABLE_AUTH=0
+      - ENABLE_GUESTS=1
+      - PUBLIC_URL=https://${DOMAIN:-localhost}
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+  # Nginx - Proxy reverso e servidor de arquivos estáticos
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./conteudos/videos:/usr/share/nginx/html/videos
+      - ./conteudos/audios:/usr/share/nginx/html/audios
+      - gdrive-mount:/mnt/gdrive
+    depends_on:
+      - backend
+    networks:
+      - escola-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  qdrant-data:
+  evolution-data:
+  n8n-data:
+  gdrive-mount:
+
+networks:
+  escola-network:
+    driver: bridge

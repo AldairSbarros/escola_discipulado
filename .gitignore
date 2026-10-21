@@ -1,0 +1,13 @@
+node_modules/
+.env
+*.log
+.DS_Store
+dist/
+.next/
+qdrant_data/
+conteudos/devocionais/*.mp3
+conteudos/devocionais/*.png
+conteudos/videos/
+conteudos/audios/
+backups/
+logs/

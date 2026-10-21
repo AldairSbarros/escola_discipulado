@@ -1,0 +1,92 @@
+{
+  "name": "Quiz Escola de Discipulado",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-quiz",
+      "name": "Trigger Quiz Diário",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "quiz-daily-trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://evolution:8080/message/sendText/{{instanceName}}",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "{{$env.EVOLUTION_API_KEY}}"
+            }
+          ]
+        },
+        "body": {
+          "contentType": "text",
+          "number": "{{ $('Buscar Alunos').item.json.whatsapp }}",
+          "text": "📚 *Quiz do Dia - Módulo 1*\n\nLição: A Bíblia\n\n1. O que significa a palavra Bíblia?\na) Livros\nb) Sagrado\nc) Antigo\n\nResponda com a letra!"
+        },
+        "options": {}
+      },
+      "id": "send-quiz-evolution",
+      "name": "Enviar Quiz WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "table": "alunos",
+        "limit": 100
+      },
+      "id": "get-students",
+      "name": "Buscar Alunos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "escola-db-cred",
+          "name": "Escola DB"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger Quiz Diário": {
+      "main": [
+        [
+          {
+            "node": "Buscar Alunos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Alunos": {
+      "main": [
+        [
+          {
+            "node": "Enviar Quiz WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "escola-quiz-workflow"
+}
